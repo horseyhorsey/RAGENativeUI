@@ -440,14 +440,14 @@ namespace RAGENativeUI
         /// Draw your custom banner.
         /// </summary>
         /// <param name="e">Rage.GraphicsEventArgs to draw on.</param>
+        [Obsolete("UIMenu.DrawBanner(GraphicsEventArgs) will be removed soon, use UIMenu.DrawBanner(Graphics) instead.")]
         public void DrawBanner(GraphicsEventArgs e)
         {
             if (!Visible || _customBanner == null) return;
             var origRes = Game.Resolution;
-            var safe = GetSafezoneBounds();
             float aspectRaidou = origRes.Width / (float)origRes.Height;
 
-            Point bannerPos = new Point(_offset.X + safe.X, _offset.Y + safe.Y);
+            Point bannerPos = new Point(_offset.X + safezoneBounds.X, _offset.Y + safezoneBounds.Y);
             Size bannerSize = new Size(431 + WidthOffset, 107);
 
             PointF pos = new PointF(bannerPos.X / (1080 * aspectRaidou), bannerPos.Y / 1080f);
@@ -455,6 +455,29 @@ namespace RAGENativeUI
 
             //Bug: funky positionment on windowed games + max resolution.
             e.Graphics.DrawTexture(_customBanner, pos.X * Game.Resolution.Width, pos.Y * Game.Resolution.Height, siz.Width * Game.Resolution.Width, siz.Height * Game.Resolution.Height);
+        }
+
+        /// <summary>
+        /// Draw your custom banner.
+        /// <para>
+        /// To prevent flickering call it inside a <see cref="Game.RawFrameRender"/> event handler.
+        /// </para>
+        /// </summary>
+        /// <param name="g">The <see cref="Rage.Graphics"/> to draw on.</param>
+        public void DrawBanner(Rage.Graphics g)
+        {
+            if (!Visible || _customBanner == null) return;
+            var origRes = Game.Resolution;
+            float aspectRaidou = origRes.Width / (float)origRes.Height;
+
+            Point bannerPos = new Point(_offset.X + safezoneBounds.X, _offset.Y + safezoneBounds.Y);
+            Size bannerSize = new Size(431 + WidthOffset, 107);
+
+            PointF pos = new PointF(bannerPos.X / (1080 * aspectRaidou), bannerPos.Y / 1080f);
+            SizeF siz = new SizeF(bannerSize.Width / (1080 * aspectRaidou), bannerSize.Height / 1080f);
+
+            //Bug: funky positionment on windowed games + max resolution.
+            g.DrawTexture(_customBanner, pos.X * Game.Resolution.Width, pos.Y * Game.Resolution.Height, siz.Width * Game.Resolution.Width, siz.Height * Game.Resolution.Height);
         }
 
         /// <summary>
@@ -467,14 +490,14 @@ namespace RAGENativeUI
 
             if (_justOpened)
             {
-                if (_logo != null && !_logo.IsTextureDictLoaded)
-                    _logo.LoadTextureDict();
-                if (!_background.IsTextureDictLoaded)
-                    _background.LoadTextureDict();
-                if (!_descriptionRectangle.IsTextureDictLoaded)
-                    _descriptionRectangle.LoadTextureDict();
-                if (!_upAndDownSprite.IsTextureDictLoaded)
-                    _upAndDownSprite.LoadTextureDict();
+                if (_logo != null && !_logo.IsTextureDictionaryLoaded)
+                    _logo.LoadTextureDictionary();
+                if (!_background.IsTextureDictionaryLoaded)
+                    _background.LoadTextureDictionary();
+                if (!_descriptionRectangle.IsTextureDictionaryLoaded)
+                    _descriptionRectangle.LoadTextureDictionary();
+                if (!_upAndDownSprite.IsTextureDictionaryLoaded)
+                    _upAndDownSprite.LoadTextureDictionary();
             }
 
             if (ControlDisablingEnabled)
@@ -489,6 +512,7 @@ namespace RAGENativeUI
             NativeFunction.CallByHash<uint>(0xb8a850f20a067eb6, 76, 84);           // Safezone
             NativeFunction.CallByHash<uint>(0xf5a2c681787e579d, 0f, 0f, 0f, 0f);   // stuff
 
+            safezoneBounds = GetSafezoneBounds();
 
             if (_customBanner == null)
             {
@@ -535,6 +559,11 @@ namespace RAGENativeUI
                     item.Draw();
                     count++;
                 }
+                if (_counterText != null && CounterOverride != null)
+                {
+                    _counterText.Caption = CounterPretext + CounterOverride;
+                    _counterText.Draw();
+                }
             }
             else
             {
@@ -556,8 +585,15 @@ namespace RAGENativeUI
                 _upAndDownSprite.Draw();
                 if (_counterText != null)
                 {
-                    string cap = (CurrentSelection + 1) + " / " + MenuItems.Count;
-                    _counterText.Caption = CounterPretext + cap;
+                    if (CounterOverride == null)
+                    {
+                        string cap = (CurrentSelection + 1) + " / " + MenuItems.Count;
+                        _counterText.Caption = CounterPretext + cap;
+                    }
+                    else
+                    {
+                        _counterText.Caption = CounterPretext + CounterOverride;
+                    }
                     _counterText.Draw();
                 }
             }
@@ -841,6 +877,7 @@ namespace RAGENativeUI
             return true;
         }
 
+        private Point safezoneBounds;
         /// <summary>
         /// Process the mouse's position and check if it's hovering over any Element. Call this in Game.FrameRender or in a loop.
         /// </summary>
@@ -856,7 +893,6 @@ namespace RAGENativeUI
                 return;
             }
 
-            Point safezoneOffset = GetSafezoneBounds();
             NativeFunction.CallByHash<uint>(0xaae7ce1d63167423);  // _SHOW_CURSOR_THIS_FRAME
             int limit = MenuItems.Count - 1;
             int counter = 0;
@@ -880,8 +916,8 @@ namespace RAGENativeUI
 
             for (int i = _minItem; i <= limit; i++)
             {
-                int xpos = _offset.X + safezoneOffset.X;
-                int ypos = _offset.Y + 144 - 37 + _extraYOffset + (counter*38) + safezoneOffset.Y;
+                int xpos = _offset.X + safezoneBounds.X;
+                int ypos = _offset.Y + 144 - 37 + _extraYOffset + (counter*38) + safezoneBounds.Y;
                 int xsize = 431 + WidthOffset;
                 const int ysize = 38;
                 UIMenuItem uiMenuItem = MenuItems[i];
@@ -893,10 +929,10 @@ namespace RAGENativeUI
                         {
                             if (MenuItems[i] is UIMenuListItem &&
                                 IsMouseInListItemArrows((UIMenuListItem) MenuItems[i], new Point(xpos, ypos),
-                                    safezoneOffset) > 0)
+                                    safezoneBounds) > 0)
                             {
                                 int res = IsMouseInListItemArrows((UIMenuListItem) MenuItems[i], new Point(xpos, ypos),
-                                    safezoneOffset);
+                                    safezoneBounds);
                                 switch (res)
                                 {
                                     case 1:
@@ -932,8 +968,8 @@ namespace RAGENativeUI
                     uiMenuItem.Hovered = false;
                 counter++;
             }
-            int extraY = 144 + 38*(MaxItemsOnScreen + 1) + _offset.Y - 37 + _extraYOffset + safezoneOffset.Y;
-            int extraX = safezoneOffset.X + _offset.X;
+            int extraY = 144 + 38*(MaxItemsOnScreen + 1) + _offset.Y - 37 + _extraYOffset + safezoneBounds.Y;
+            int extraX = safezoneBounds.X + _offset.X;
             if (MenuItems.Count <= MaxItemsOnScreen + 1) return;
             if (IsMouseInBounds(new Point(extraX, extraY), new Size(431 + WidthOffset, 18)))
             {
@@ -1366,6 +1402,17 @@ namespace RAGENativeUI
         /// String to pre-attach to the counter string. Useful for color codes.
         /// </summary>
         public string CounterPretext { get; set; }
+
+        /// <summary>
+        /// Gets or sets the text that overrides the counter string.
+        /// <para>
+        /// If <c>null</c> the counter string isn't overrided.
+        /// </para>
+        /// </summary>
+        /// <value>
+        /// The text that overrides the counter string.
+        /// </value>
+        public string CounterOverride { get; set; }
 
         /// <summary>
         /// If this is a nested menu, returns the parent menu. You can also set it to a menu so when pressing Back it goes to that menu.

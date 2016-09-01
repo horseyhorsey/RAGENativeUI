@@ -15,13 +15,25 @@ namespace RAGENativeUI.Elements
         public bool Visible;
         public float Heading;
 
+        [Obsolete("Use Sprite.TextureDictionary instead.")]
         public string TextureDict
         {
             get { return _textureDict; }
             set
             {
                 _textureDict = value;
-                if(!NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", value))
+                if (!NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", value))
+                    NativeFunction.CallByName<uint>("REQUEST_STREAMED_TEXTURE_DICT", value, true);
+            }
+        }
+
+        public string TextureDictionary
+        {
+            get { return _textureDict; }
+            set
+            {
+                _textureDict = value;
+                if (!NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", value))
                     NativeFunction.CallByName<uint>("REQUEST_STREAMED_TEXTURE_DICT", value, true);
             }
         }
@@ -29,6 +41,27 @@ namespace RAGENativeUI.Elements
         public string TextureName;
         private string _textureDict;
 
+        [Obsolete("Use Sprite.IsTextureDictionaryLoaded instead.")]
+        public bool IsTextureDictLoaded
+        {
+            get { return NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", TextureDict); }
+        }
+
+        public bool IsTextureDictionaryLoaded
+        {
+            get { return NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", TextureDictionary); }
+        }
+
+        [Obsolete("Use Sprite.LoadTextureDictionary() instead.")]
+        public void LoadTextureDict()
+        {
+            NativeFunction.CallByName<uint>("REQUEST_STREAMED_TEXTURE_DICT", TextureDict, true);
+        }
+
+        public void LoadTextureDictionary()
+        {
+            NativeFunction.CallByName<uint>("REQUEST_STREAMED_TEXTURE_DICT", TextureDictionary, true);
+        }
 
         /// <summary>
         /// Creates a game sprite object from a texture dictionary and texture name.
@@ -43,7 +76,7 @@ namespace RAGENativeUI.Elements
         {
             if (!NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", textureDict))
                 NativeFunction.CallByName<uint>("REQUEST_STREAMED_TEXTURE_DICT", textureDict, true);
-            TextureDict = textureDict;
+            TextureDictionary = textureDict;
             TextureName = textureName;
 
             Position = position;
@@ -74,8 +107,8 @@ namespace RAGENativeUI.Elements
             int screenw = Game.Resolution.Width;
             int screenh = Game.Resolution.Height;
             const float height = 1080f;
-            float ratio = (float)screenw/screenh;
-            var width = height*ratio;
+            float ratio = (float)screenw / screenh;
+            var width = height * ratio;
 
 
             float w = (Size.Width / width);
@@ -83,7 +116,7 @@ namespace RAGENativeUI.Elements
             float x = (Position.X / width) + w * 0.5f;
             float y = (Position.Y / height) + h * 0.5f;
 
-            NativeFunction.CallByName<uint>("DRAW_SPRITE", TextureDict, TextureName, x, y, w, h, Heading, Convert.ToInt32(Color.R), Convert.ToInt32(Color.G), Convert.ToInt32(Color.B), Convert.ToInt32(Color.A));
+            NativeFunction.CallByName<uint>("DRAW_SPRITE", TextureDictionary, TextureName, x, y, w, h, Heading, Convert.ToInt32(Color.R), Convert.ToInt32(Color.G), Convert.ToInt32(Color.B), Convert.ToInt32(Color.A));
         }
 
 
@@ -93,7 +126,8 @@ namespace RAGENativeUI.Elements
         /// <param name="texture">Your custom texture object.</param>
         /// <param name="position"></param>
         /// <param name="size"></param>
-        public static void DrawTexture(Texture texture, Point position, Size size, GraphicsEventArgs canvas) 
+        [Obsolete("The Sprite.DrawTexture() overload that accepts a GraphicsEventArgs instance will be removed soon, use the Sprite.DrawTexture() overload that accepts a Graphics instance instead.")]
+        public static void DrawTexture(Texture texture, Point position, Size size, GraphicsEventArgs canvas)
         {
             var origRes = Game.Resolution;
             float aspectRaidou = origRes.Width / (float)origRes.Height;
@@ -102,13 +136,29 @@ namespace RAGENativeUI.Elements
             canvas.Graphics.DrawTexture(texture, pos.X * Game.Resolution.Width, pos.Y * Game.Resolution.Height, siz.Width * Game.Resolution.Width, siz.Height * Game.Resolution.Height);
         }
 
-        
+        /// <summary>
+        /// Draws a custom texture from a file on a 1080-pixels height base.
+        /// </summary>
+        /// <param name="texture">Your custom texture object.</param>
+        /// <param name="position"></param>
+        /// <param name="size"></param>
+        /// <param name="graphics"></param>
+        public static void DrawTexture(Texture texture, Point position, Size size, Rage.Graphics graphics)
+        {
+            var origRes = Game.Resolution;
+            float aspectRaidou = origRes.Width / (float)origRes.Height;
+            PointF pos = new PointF(position.X / (1080 * aspectRaidou), position.Y / 1080f);
+            SizeF siz = new SizeF(size.Width / (1080 * aspectRaidou), size.Height / 1080f);
+            graphics.DrawTexture(texture, pos.X * Game.Resolution.Width, pos.Y * Game.Resolution.Height, siz.Width * Game.Resolution.Width, siz.Height * Game.Resolution.Height);
+        }
+
         /// <summary>
         /// Save an embedded resource to a temporary file.
         /// </summary>
         /// <param name="yourAssembly">Your executing assembly.</param>
         /// <param name="fullResourceName">Resource name including your solution name. E.G MyMenuMod.banner.png</param>
         /// <returns>Absolute path to the written file.</returns>
+        [Obsolete("Sprite.WriteFileFromResources() will be removed soon, use Common.WriteFileFromResources() instead.")]
         public static string WriteFileFromResources(Assembly yourAssembly, string fullResourceName)
         {
             string tmpPath = Path.GetTempFileName();
@@ -123,6 +173,7 @@ namespace RAGENativeUI.Elements
         /// <param name="fullResourceName">Resource name including your solution name. E.G MyMenuMod.banner.png</param>
         /// <param name="savePath">Path to where save the file, including the filename.</param>
         /// <returns>Absolute path to the written file.</returns>
+        [Obsolete("Sprite.WriteFileFromResources() will be removed soon, use Common.WriteFileFromResources() instead.")]
         public static string WriteFileFromResources(Assembly yourAssembly, string fullResourceName, string savePath)
         {
             using (Stream stream = yourAssembly.GetManifestResourceStream(fullResourceName))
@@ -140,16 +191,6 @@ namespace RAGENativeUI.Elements
                 }
             }
             return Path.GetFullPath(savePath);
-        }
-
-        public bool IsTextureDictLoaded
-        {
-            get { return NativeFunction.CallByName<bool>("HAS_STREAMED_TEXTURE_DICT_LOADED", TextureDict); }
-        }
-
-        public void LoadTextureDict()
-        {
-            NativeFunction.CallByName<uint>("REQUEST_STREAMED_TEXTURE_DICT", TextureDict, true);
         }
     }
 }
