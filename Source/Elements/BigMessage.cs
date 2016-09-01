@@ -1,5 +1,6 @@
 ﻿using Rage;
 using Rage.Native;
+using System;
 
 namespace RAGENativeUI.Elements
 {
@@ -8,6 +9,7 @@ namespace RAGENativeUI.Elements
         private Scaleform _sc;
         private uint _start;
         private int _timer;
+        public event Action MessageFinished;
 
         public BigMessageHandler()
         {
@@ -123,6 +125,9 @@ namespace RAGENativeUI.Elements
             {
                 _sc.CallFunction("TRANSITION_OUT");
                 _start = 0;
+
+                if (MessageFinished != null)
+                    MessageFinished.Invoke();
                 //Dispose();
             }
         }
